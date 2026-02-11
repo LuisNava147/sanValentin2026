@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Para Ti ❤️</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:wght@300;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #42071b; /* Fondo negro para que el desvanecimiento se vea elegante */
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Montserrat', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            user-select: none;
+        }
+
+        /* --- CONTENEDOR DE PANTALLAS --- */
+        .pantalla {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none; /* Oculto por defecto */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            opacity: 0; /* Empieza transparente */
+            transition: opacity 1s ease-in-out; /* ESTA ES LA MAGIA DE LA TRANSICIÓN */
+        }
+
+        .visible {
+            display: flex;
+            opacity: 1; /* Se vuelve visible suavemente */
+        }
+
+        /* --- PANTALLA 1: CORAZÓN --- */
+        .corazon {
+            font-size: 100px;
+            cursor: pointer;
+            animation: latido 1.5s infinite;
+            filter: drop-shadow(0 0 15px rgba(255, 77, 109, 0.8));
+        }
+
+        .instruccion {
+            margin-top: 20px;
+            font-size: 1rem;
+            opacity: 0.7;
+            animation: parpadeo 2s infinite;
+        }
+
+        /* --- PANTALLA 2: VISOR DE FOTOS --- */
+        #visor-fotos {
+            background-size: contain; /* Ajusta la foto sin recortarla */
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: black; 
+            cursor: pointer;
+        }
+        
+        .tap-hint {
+            position: absolute;
+            bottom: 30px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+
+        /* --- PANTALLA 3: PREGUNTA FINAL --- */
+        #pantalla-pregunta {
+            background-size: cover;
+            background-position: center;
+            /* Degradado oscuro para que se lean las letras */
+            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)); 
+        }
+
+        h1 {
+            font-family: 'Dancing Script', cursive;
+            font-size: 3rem;
+            color: #ff4d6d;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 5px black;
+            padding: 0 20px;
+        }
+
+        .botones {
+            position: relative;
+            width: 100%;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        #btn-si {
+            background: #ff4d6d;
+            color: white;
+            box-shadow: 0 0 15px rgba(255, 77, 109, 0.5);
+            z-index: 100; /* Asegura que siempre esté encima */
+        }
+
+        #btn-no {
+            background: white;
+            color: black;
+            position: absolute; /* Vital para que se mueva */
+        }
+
+        /* --- PANTALLA 4: FINAL --- */
+        #pantalla-final h2 {
+            font-family: 'Dancing Script';
+            font-size: 3.5rem;
+            color: #ff4d6d;
+        }
+
+        /* --- ANIMACIONES CSS --- */
+        @keyframes latido {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        @keyframes parpadeo {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* CANVAS CONFETI */
+        canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="inicio" class="pantalla visible" onclick="iniciarHistoria()">
+        <div class="corazon">❤️</div>
+        <div class="instruccion">Haz clic en mí</div>
+    </div>
+
+    <div id="visor-fotos" class="pantalla" onclick="siguienteFoto()">
+        <div class="tap-hint">Toca para continuar...</div>
+    </div>
+
+    <div id="pantalla-pregunta" class="pantalla">
+        <h1>¿Quieres ser mi San Valentín?</h1>
+        <div class="botones">
+            <button id="btn-no">No</button>
+            <button id="btn-si" onclick="aceptar()">¡Sí, acepto!</button>
+        </div>
+    </div>
+
+    <div id="pantalla-final" class="pantalla">
+        <h2>¡Te Amo! ❤️</h2>
+        <p>Dios te pague por decir que sí.</p>
+        <p style="font-size: 0.9rem;">(Prepárate para nuestro aniversario)</p>
+    </div>
+
+    <canvas id="confeti"></canvas>
+
+    <script>
+        // CONFIGURACIÓN: Lista de fotos PNG
+        const fotos = [
+            'img/foto1.png',
+            'img/foto2.png',
+            'img/foto3.png',
+            'img/foto4.png',
+            'img/foto5.png'
+        ];
+        
+        let indiceActual = 0;
+        let enTransicion = false; // Evita clics dobles rápidos
+
+        function iniciarHistoria() {
+            // Ocultamos inicio
+            const inicio = document.getElementById('inicio');
+            inicio.classList.remove('visible');
+            
+            // Esperamos 1 segundo a que se desvanezca el corazón para mostrar la foto 1
+            setTimeout(() => {
+                inicio.style.display = 'none'; // Lo quitamos del flujo
+                mostrarFoto(0);
+            }, 1000);
+        }
+
+        function mostrarFoto(index) {
+            const visor = document.getElementById('visor-fotos');
+            
+            // Preparamos la imagen
+            visor.style.backgroundImage = `url('${fotos[index]}')`;
+            
+            // Hacemos que aparezca (Fade In)
+            visor.style.display = 'flex';
+            // Pequeño delay para permitir que el navegador procese el cambio de display antes de la opacidad
+            setTimeout(() => {
+                visor.classList.add('visible');
+            }, 50);
+        }
+
+        function siguienteFoto() {
+            if (enTransicion) return; // Si ya está cambiando, ignorar clic
+            enTransicion = true;
+
+            const visor = document.getElementById('visor-fotos');
+            
+            // 1. Desvanecer foto actual (Fade Out)
+            visor.classList.remove('visible');
+
+            // 2. Esperar 1 segundo (lo que dura la transición CSS)
+            setTimeout(() => {
+                indiceActual++;
+
+                if (indiceActual < fotos.length) {
+                    // Si quedan fotos, cargamos la siguiente
+                    visor.style.backgroundImage = `url('${fotos[indiceActual]}')`;
+                    visor.classList.add('visible'); // Fade In
+                    enTransicion = false;
+                } else {
+                    // Si se acabaron las fotos, vamos a la pregunta
+                    visor.style.display = 'none'; // Quitar visor
+                    prepararPregunta();
+                }
+            }, 1000);
+        }
+
+        function prepararPregunta() {
+            const pantallaP = document.getElementById('pantalla-pregunta');
+            // Usamos la última foto como fondo
+            pantallaP.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url('img/img6.jpg')`;
+            
+            pantallaP.style.display = 'flex';
+            setTimeout(() => {
+                pantallaP.classList.add('visible');
+            }, 50);
+        }
+
+        // --- BOTÓN NO ESCAPISTA ---
+        const btnNo = document.getElementById('btn-no');
+        
+        function moverBoton(e) {
+            e.preventDefault(); // Evita que se pueda hacer clic
+            // Limites de la pantalla
+            const ancho = window.innerWidth - 100;
+            const alto = window.innerHeight - 100;
+            
+            const nuevoX = Math.random() * ancho;
+            const nuevoY = Math.random() * alto;
+
+            btnNo.style.position = 'fixed';
+            btnNo.style.left = Math.max(20, nuevoX) + 'px'; // Evita que se salga por la izquierda
+            btnNo.style.top = Math.max(20, nuevoY) + 'px';  // Evita que se salga por arriba
+        }
+
+        // Eventos para PC y Celular
+        btnNo.addEventListener('mouseenter', moverBoton);
+        btnNo.addEventListener('touchstart', moverBoton);
+
+        // --- FINAL Y CONFETI ---
+        function aceptar() {
+            const pantallaP = document.getElementById('pantalla-pregunta');
+            pantallaP.classList.remove('visible');
+            
+            setTimeout(() => {
+                pantallaP.style.display = 'none';
+                const final = document.getElementById('pantalla-final');
+                final.style.display = 'flex';
+                setTimeout(() => final.classList.add('visible'), 50);
+                lanzarConfeti();
+            }, 1000);
+        }
+
+        // Lógica del Confeti
+        const canvas = document.getElementById('confeti');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const particles = [];
+
+        function lanzarConfeti() {
+            for(let i=0; i<200; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    size: Math.random() * 8 + 3,
+                    speed: Math.random() * 5 + 3
+                });
+            }
+            animar();
+        }
+
+        function animar() {
+            ctx.clearRect(0,0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.y += p.speed;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            });
+            requestAnimationFrame(animar);
+        }
+    </script>
+</body>
+</html>
